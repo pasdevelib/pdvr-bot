@@ -1,63 +1,42 @@
-# pdvr-bot — PasDeVélib, villes en région
+# pdvr-bot
 
-Ce dépôt héberge les workflows GitHub Actions pour les **8 villes hors
-Paris** (bordeaux, lille, lyon, montpellier, nantes, rennes, strasbourg,
-toulouse). Paris reste géré par
-[`pasdevelib/pdv-bot`](https://github.com/pasdevelib/pdv-bot).
+Workflows GitHub Actions pour les **7 villes en région** de [pasdevelib.app](https://pasdevelib.app) : Bordeaux, Lille, Lyon, Montpellier, Nantes, Rennes, Strasbourg, Toulouse. Paris reste géré par [`pasdevelib/pdv-bot`](https://github.com/pasdevelib/pdv-bot).
 
-## ⚠️ Ce dépôt doit être PUBLIC
+Ce dépôt ne contient **aucun code Python** — seulement des workflows. Chaque job installe le paquet partagé directement depuis `pdv-bot` :
 
-Comme `pdv-bot`, ce dépôt doit rester public : le webapp
-(api.pasdevelib.app) et le workflow `stats-cities.yml` de `pdv-bot` lisent
-ses releases de façon anonyme, sans token. Un dépôt privé casserait ces
-deux chemins de lecture.
-
-## Pourquoi un dépôt séparé (2026-09-28)
-
-GitHub Actions retarde et laisse tomber la plupart des déclenchements
-`schedule` quand un même dépôt en cumule trop, surtout à haute fréquence
-(`*/5 * * * *`). Ça a provoqué une régression de 3 mois sur le scraping
-Paris (voir l'historique de `pdv-bot`), découverte fin septembre 2026.
-Une première consolidation (passage de 8 workflows par ville à un seul
-workflow en matrice) a réduit le nombre de déclarations `schedule` dans
-`pdv-bot`, sans totalement l'éliminer.
-
-Ce dépôt va plus loin : en isolant les villes en région dans leur propre
-dépôt, **Paris dispose de son propre quota de déclenchements programmés**,
-complètement indépendant de celui des 7 autres villes. Un pic d'activité
-ou un futur bug de scheduling sur les villes en région ne peut plus
-affecter Paris, et inversement.
-
-## Pas de code dupliqué
-
-Ce dépôt ne contient aucun code Python — seulement des workflows. Chaque
-job installe le package partagé directement depuis `pdv-bot` :
-
-```
+```bash
 pip install "git+https://github.com/pasdevelib/pdv-bot.git"
 ```
 
-Toute la logique métier (scraping, consolidation, prévision, stockage)
-vit dans un seul endroit (`pdv-bot`), donc aucun risque de divergence
-entre deux copies du même code.
+Toute la logique métier (scraping, consolidation, prévision, stockage) vit dans un seul endroit, donc aucun risque de divergence entre deux copies du même code.
+
+## ⚠️ Ce dépôt doit être PUBLIC
+
+Comme `pdv-bot`, ce dépôt doit rester public : `blog.pasdevelib.app` et le workflow `stats-cities.yml` de `pdv-bot` lisent ses releases de façon anonyme, sans token. Un dépôt privé casserait ces deux chemins de lecture.
+
+## Pourquoi un dépôt séparé (2026-09-28)
+
+GitHub Actions retarde et laisse tomber la plupart des déclenchements `schedule` quand un même dépôt en cumule trop, surtout à haute fréquence (`*/5 * * * *`) — root cause d'une régression de 3 mois sur le scraping Paris, découverte fin septembre 2026. Une première consolidation (8 workflows par ville → 1 workflow en matrice) a réduit le nombre de déclarations `schedule` dans `pdv-bot`, sans l'éliminer. Isoler les villes en région dans leur propre dépôt donne à **Paris son propre quota de déclenchements programmés**, complètement indépendant de celui des 7 autres villes.
+
+## Workflows
+
+| Fichier                    | Fréquence     | Sortie (release de CE dépôt)                          |
+|-----------------------------|---------------|---------------------------------------------------------|
+| `scrape-cities.yml`         | */5 min       | `cities-live` (snapshots temps réel)                    |
+| `consolidate-cities.yml`    | quotidien 3h30| `cities-history` (`hourly_history_<ville>.parquet`)      |
+| `forecast-cities.yml`       | quotidien 5h45| `cities-aggregates` (`forecast_7d_<ville>.parquet`)      |
+| `geocode-cities.yml`        | hebdo (lundi) | `cities-live` (enrichit `stations_cities.json`)          |
+
+Tous en matrice (`fail-fast: false`) : un plantage sur une ville n'affecte jamais les autres, et un seul cron est enregistré côté GitHub pour les 8 villes de chaque job.
+
+`stats-cities.yml` (classements/analyses, y compris Paris) et `daily-digest.yml` (bilan quotidien IA) restent dans `pdv-bot` : ils ont besoin de lire les données des deux dépôts dans la même exécution — voir le README de `pdv-bot`.
 
 ## Stockage
 
-Les données des villes en région (releases GitHub `cities-live`,
-`cities-history`, `cities-aggregates`) vivent désormais **dans CE
-dépôt** (`pdvr-bot`), pas dans `pdv-bot`. Chaque workflow écrit avec le
-token par défaut de GitHub Actions (`secrets.GITHUB_TOKEN`) — aucun
-secret à créer manuellement.
+Chaque workflow écrit avec le token par défaut de GitHub Actions (`secrets.GITHUB_TOKEN`, `contents: write` sur CE dépôt) — **aucun secret à créer manuellement**.
 
-Exception : `forecast-cities.yml` lit aussi deux fichiers partagés avec
-Paris (`calendar.parquet`, `weather.parquet`, release `aggregates` de
-`pdv-bot`) — en lecture anonyme, `pdv-bot` étant public. Et
-`stats-cities.yml`, qui a besoin des données Paris ET des données
-villes dans la même exécution, reste hébergé côté `pdv-bot` et lit les
-releases de CE dépôt en anonyme (voir plus haut : ce dépôt doit rester
-public).
+Exception : `forecast-cities.yml` lit deux fichiers partagés avec Paris (`calendar.parquet`, `weather.parquet`, release `aggregates` de `pdv-bot`) en lecture anonyme, `pdv-bot` étant public.
 
-## Aucun secret requis
+## Pages consommant ces données
 
-Tous les workflows de ce dépôt utilisent `secrets.GITHUB_TOKEN` (le
-token par défaut d'Actions, scopé sur ce dépôt) — rien à configurer.
+`blog.pasdevelib.app/bordeaux`, `/lyon`, `/lille`, `/rennes`, `/strasbourg`, `/toulouse` (pages vitrine par ville), `/donnees?ville=<id>&periode=week` (dashboard), `/blog/articles/dailymonitoring/<ville>` (bilan quotidien) — toutes via [`pasdevelib-webapp`](https://github.com/pasdevelib/pasdevelib-webapp), en lecture directe sur les releases de ce dépôt.
