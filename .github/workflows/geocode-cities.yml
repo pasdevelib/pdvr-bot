@@ -1,0 +1,23 @@
+name: geocode-cities
+
+# Migré depuis pasdevelib/pdv-bot le 2026-09-28 (voir README.md).
+# Enrichit stations_cities.json avec un champ 'zone' pour les villes en
+# région. Rare (hebdo) : la position des stations change très peu.
+on:
+  schedule:
+    - cron: '0 4 * * 1'  # lundi 04:00 UTC
+  workflow_dispatch:
+
+jobs:
+  geocode:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Install
+        run: pip install requests pandas pyarrow "git+https://github.com/pasdevelib/pdv-bot.git"
+
+      - name: Geocode
+        env:
+          GH_TOKEN: ${{ secrets.PDV_BOT_TOKEN }}
+          GITHUB_REPOSITORY: pasdevelib/pdv-bot
+        run: python -m pasdevelib.geocode_cities

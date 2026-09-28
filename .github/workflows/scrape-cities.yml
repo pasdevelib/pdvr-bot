@@ -1,0 +1,30 @@
+name: scrape-cities
+
+# Migré depuis pasdevelib/pdv-bot le 2026-09-28 (voir README.md de ce
+# dépôt) : isole le quota de déclenchements `schedule` des 8 villes en
+# région de celui de Paris, dans un dépôt séparé. Matrice + fail-fast:
+# false = un plantage sur une ville n'affecte jamais les autres, un seul
+# cron enregistré côté GitHub pour les 8 villes.
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    name: Scrape ${{ matrix.city }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        city: [bordeaux, lille, lyon, montpellier, nantes, rennes, strasbourg, toulouse]
+    steps:
+      - name: Install
+        run: pip install requests pandas pyarrow "git+https://github.com/pasdevelib/pdv-bot.git"
+
+      - name: Scrape ${{ matrix.city }}
+        env:
+          GH_TOKEN: ${{ secrets.PDV_BOT_TOKEN }}
+          GITHUB_REPOSITORY: pasdevelib/pdv-bot
+        run: python -m pasdevelib.scrape_cities --cities ${{ matrix.city }}

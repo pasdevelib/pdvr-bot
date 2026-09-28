@@ -1,0 +1,29 @@
+name: forecast-cities
+
+# Migré depuis pasdevelib/pdv-bot le 2026-09-28 (voir README.md).
+# Prévision 7 jours pour les villes en région, même moteur predict.py
+# que Paris. Matrice + fail-fast: false = isolation par ville.
+on:
+  schedule:
+    # 05:45 UTC, après consolidate-cities.yml (03:30)
+    - cron: '45 5 * * *'
+  workflow_dispatch:
+
+jobs:
+  forecast:
+    name: Forecast ${{ matrix.city }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        city: [bordeaux, lyon, toulouse, lille, rennes, strasbourg, nantes, montpellier]
+    steps:
+      - name: Install
+        run: pip install requests pandas pyarrow "git+https://github.com/pasdevelib/pdv-bot.git"
+
+      - name: Forecast ${{ matrix.city }}
+        env:
+          GH_TOKEN: ${{ secrets.PDV_BOT_TOKEN }}
+          GITHUB_REPOSITORY: pasdevelib/pdv-bot
+        run: python -m pasdevelib.forecast_cities --cities ${{ matrix.city }}

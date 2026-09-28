@@ -1,0 +1,31 @@
+name: consolidate-cities
+
+# Migré et fusionné le 2026-09-28 : remplace les 8 fichiers
+# consolidate-<ville>.yml de pdv-bot (8 déclarations `schedule`
+# distinctes) par une seule matrice, même principe que
+# scrape-cities.yml. Les horaires d'origine étaient étalés entre 3h30 et
+# 3h55 UTC pour lisser la charge ; regroupés ici à 3h30, GitHub Actions
+# répartit de toute façon le démarrage réel des jobs d'une même matrice.
+on:
+  schedule:
+    - cron: '30 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  consolidate:
+    name: Consolidate ${{ matrix.city }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        city: [bordeaux, lille, lyon, montpellier, nantes, rennes, strasbourg, toulouse]
+    steps:
+      - name: Install
+        run: pip install requests pandas pyarrow "git+https://github.com/pasdevelib/pdv-bot.git"
+
+      - name: Consolidate ${{ matrix.city }}
+        env:
+          GH_TOKEN: ${{ secrets.PDV_BOT_TOKEN }}
+          GITHUB_REPOSITORY: pasdevelib/pdv-bot
+        run: python -m pasdevelib.consolidate_cities --cities ${{ matrix.city }}
