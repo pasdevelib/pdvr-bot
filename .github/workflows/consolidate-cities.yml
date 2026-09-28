@@ -6,10 +6,15 @@ name: consolidate-cities
 # scrape-cities.yml. Les horaires d'origine étaient étalés entre 3h30 et
 # 3h55 UTC pour lisser la charge ; regroupés ici à 3h30, GitHub Actions
 # répartit de toute façon le démarrage réel des jobs d'une même matrice.
+#
+# Écrit dans les releases de CE dépôt (pdvr-bot) — token par défaut.
 on:
   schedule:
     - cron: '30 3 * * *'
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   consolidate:
@@ -26,6 +31,5 @@ jobs:
 
       - name: Consolidate ${{ matrix.city }}
         env:
-          GH_TOKEN: ${{ secrets.PDV_BOT_TOKEN }}
-          GITHUB_REPOSITORY: pasdevelib/pdv-bot
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python -m pasdevelib.consolidate_cities --cities ${{ matrix.city }}

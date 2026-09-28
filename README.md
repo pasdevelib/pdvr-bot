@@ -5,6 +5,13 @@ Paris** (bordeaux, lille, lyon, montpellier, nantes, rennes, strasbourg,
 toulouse). Paris reste géré par
 [`pasdevelib/pdv-bot`](https://github.com/pasdevelib/pdv-bot).
 
+## ⚠️ Ce dépôt doit être PUBLIC
+
+Comme `pdv-bot`, ce dépôt doit rester public : le webapp
+(api.pasdevelib.app) et le workflow `stats-cities.yml` de `pdv-bot` lisent
+ses releases de façon anonyme, sans token. Un dépôt privé casserait ces
+deux chemins de lecture.
+
 ## Pourquoi un dépôt séparé (2026-09-28)
 
 GitHub Actions retarde et laisse tomber la plupart des déclenchements
@@ -36,16 +43,21 @@ entre deux copies du même code.
 
 ## Stockage
 
-Les données (releases GitHub `cities-live`, `cities-history`, etc.)
-restent hébergées sur **`pasdevelib/pdv-bot`**, comme avant — rien ne
-change côté webapp ni côté format de données. Chaque workflow fixe
-explicitement `GITHUB_REPOSITORY: pasdevelib/pdv-bot` pour que
-`storage.py` continue de lire/écrire au bon endroit, avec un token
-dédié (`PDV_BOT_TOKEN`, secret de ce dépôt) qui a les droits d'écriture
-sur les releases de `pdv-bot`.
+Les données des villes en région (releases GitHub `cities-live`,
+`cities-history`, `cities-aggregates`) vivent désormais **dans CE
+dépôt** (`pdvr-bot`), pas dans `pdv-bot`. Chaque workflow écrit avec le
+token par défaut de GitHub Actions (`secrets.GITHUB_TOKEN`) — aucun
+secret à créer manuellement.
 
-## Secret requis
+Exception : `forecast-cities.yml` lit aussi deux fichiers partagés avec
+Paris (`calendar.parquet`, `weather.parquet`, release `aggregates` de
+`pdv-bot`) — en lecture anonyme, `pdv-bot` étant public. Et
+`stats-cities.yml`, qui a besoin des données Paris ET des données
+villes dans la même exécution, reste hébergé côté `pdv-bot` et lit les
+releases de CE dépôt en anonyme (voir plus haut : ce dépôt doit rester
+public).
 
-`PDV_BOT_TOKEN` — fine-grained PAT scopé sur `pasdevelib/pdv-bot`,
-permission `Contents: Read and write`. À créer dans
-Settings → Secrets and variables → Actions de **ce** dépôt.
+## Aucun secret requis
+
+Tous les workflows de ce dépôt utilisent `secrets.GITHUB_TOKEN` (le
+token par défaut d'Actions, scopé sur ce dépôt) — rien à configurer.

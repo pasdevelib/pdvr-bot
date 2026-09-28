@@ -5,10 +5,16 @@ name: scrape-cities
 # région de celui de Paris, dans un dépôt séparé. Matrice + fail-fast:
 # false = un plantage sur une ville n'affecte jamais les autres, un seul
 # cron enregistré côté GitHub pour les 8 villes.
+#
+# Écrit dans les releases de CE dépôt (pdvr-bot), pas dans pdv-bot — le
+# token par défaut d'Actions suffit, pas besoin de secret dédié.
 on:
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   scrape:
@@ -25,6 +31,5 @@ jobs:
 
       - name: Scrape ${{ matrix.city }}
         env:
-          GH_TOKEN: ${{ secrets.PDV_BOT_TOKEN }}
-          GITHUB_REPOSITORY: pasdevelib/pdv-bot
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python -m pasdevelib.scrape_cities --cities ${{ matrix.city }}
